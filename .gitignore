@@ -6,3 +6,11 @@ output.json
 node_modules/
 *.dist-info/
 .terraform.lock.hcl
+bin/
+bs4/
+certifi/
+charset_normalizer/
+idna/
+requests/
+soupsieve/
+urllib3/
