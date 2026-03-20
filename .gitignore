@@ -14,3 +14,4 @@ idna/
 requests/
 soupsieve/
 urllib3/
+localstack_data/
