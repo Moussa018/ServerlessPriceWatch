@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
 
-  # ─── LocalStack : émulateur AWS local ────────────────────────────────────────
+  # émulateur AWS local 
   localstack:
     image: localstack/localstack:latest
     container_name: localstack
@@ -21,21 +21,13 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
-
-  # ─── Pip Installer : installe les dépendances Python dans lambda_layers/python/ ──
-  # AWS Lambda Layers exige la structure : <layer.zip>/python/<packages>
-  # Ce service crée exactement cela avant que Terraform ne zippe le dossier.
-  # Usage : docker-compose run --rm pip-installer
   pip-installer:
     image: python:3.9-slim
     container_name: pip-installer
     volumes:
-      - ./src:/src:ro                    # requirements.txt en lecture seule
+      - ./src:/src:ro              
       - ./lambda_layers:/lambda_layers
-      - ./lambda_package:/lambda_package   # destination de l'installation
-    # --no-cache-dir  → pas de cache pip dans le conteneur (inutile ici)
-    # --upgrade       → s'assurer d'avoir la dernière version compatible
-    # -t              → target : installe directement dans python/ (requis par AWS)
+      - ./lambda_package:/lambda_package   
     command: >
       pip install
         -r /src/requirements.txt
@@ -43,9 +35,6 @@ services:
         --no-cache-dir
         --upgrade
 
-  # ─── Terraform : déploiement de l'infrastructure ─────────────────────────────
-  # Usage : docker-compose run --rm terraform init
-  #         docker-compose run --rm terraform apply -auto-approve
   terraform:
     image: hashicorp/terraform:latest
     container_name: terraform
@@ -56,8 +45,8 @@ services:
       - AWS_DEFAULT_REGION=us-east-1
       - TF_CLI_ARGS=-no-color
     volumes:
-      - ./terraform:/workspace          # fichiers .tf
-      - ./src:/src                      # scraper.py pour archive_file lambda_zip
+      - ./terraform:/workspace         
+      - ./src:/src                      
       - ./lambda_layers:/lambda_layers
       - ./lambda_package:/lambda_package  # dépendances déjà installées par pip-installer
     depends_on:
@@ -65,11 +54,6 @@ services:
         condition: service_healthy
     entrypoint: ["terraform"]
     command: ["version"]
-
-  # ─── AWS CLI : invoquer / inspecter les ressources LocalStack ────────────────
-  # Usage : docker-compose run --rm awscli lambda invoke \
-  #           --function-name PriceScraper \
-  #           --payload '{"url":"...","product_id":"..."}' output.json
   awscli:
     image: amazon/aws-cli:latest
     container_name: awscli
