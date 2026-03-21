@@ -6,7 +6,7 @@ import os
 
 def handler(event, context):
     lh = os.environ.get("LOCALSTACK_HOSTNAME", "localhost")
-    endpoint_url = f"http://{lh}:4566"
+    endpoint_url = os.environ.get("AWS_ENDPOINT_URL", "http://localhost:4566")
     
     print(f"Connexion à DynamoDB via : {endpoint_url}")
     
