@@ -3,6 +3,7 @@
 **ServerlessPriceWatch** est un outil de suivi de prix automatisé. Il utilise une fonction **AWS Lambda** (Python) pour scraper des pages produits, extraire les prix et stocker l'historique dans une table **DynamoDB**.
 
 Le projet est conçu pour être testé localement sans frais grâce à **LocalStack** et déployé via **Terraform**.
+Ce projet a marqué mon initiation à l'Infrastructure as Code (IaC) avec Terraform, me permettant de découvrir les fondamentaux du cycle de vie des ressources et la gestion du State pour l'automatisation de services Cloud.
 
 ## Architecture
 * **Logiciel de Scraping** : Python 3.9 (BeautifulSoup4 & Requests).
