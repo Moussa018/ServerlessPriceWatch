@@ -15,7 +15,7 @@ resource "aws_dynamodb_table" "price_tracker_table" {
 }
 data "archive_file" "lambda_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../src" # Chemin vers ton dossier de code
+  source_dir  = "${path.module}/../src" # Chemin vers le dossier de code
   output_path = "${path.module}/lambda_function.zip"
 }
 
@@ -35,7 +35,7 @@ resource "aws_iam_role" "lambda_role" {
   })
 }
 
-# 4. politique pour que Lambda écrit dans DynamoDB
+# politique pour que Lambda écrit dans DynamoDB
 resource "aws_iam_role_policy" "dynamodb_lambda_policy" {
   name = "dynamodb_lambda_policy"
   role = aws_iam_role.lambda_role.id
@@ -55,7 +55,7 @@ resource "aws_iam_role_policy" "dynamodb_lambda_policy" {
   })
 }
 
-# 5. La fonction Lambda 
+#  fonction Lambda 
 resource "aws_lambda_function" "price_scraper" {
   filename         = data.archive_file.lambda_zip.output_path
   function_name    = "PriceScraper"
@@ -64,11 +64,11 @@ resource "aws_lambda_function" "price_scraper" {
   runtime          = "python3.9"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
 timeout          = 30
-  # Variables d'environnement pour le code Python
+  # Variables d'environnement 
   environment {
     variables = {
       TABLE_NAME       = aws_dynamodb_table.price_tracker_table.name
-      AWS_ENDPOINT_URL = "http://localhost:4566" # Pour que Boto3 sache où est LocalStack
+      AWS_ENDPOINT_URL = "http://localhost:4566" 
     }
   }
 }
