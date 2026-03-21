@@ -5,37 +5,75 @@ from bs4 import BeautifulSoup
 import os
 
 def handler(event, context):
-    lh = os.environ.get("LOCALSTACK_HOSTNAME", "localhost")
-    endpoint_url = os.environ.get("AWS_ENDPOINT_URL", "http://localhost:4566")
+    endpoint_url = os.environ.get("AWS_ENDPOINT_URL")
+    table_name = os.environ.get("TABLE_NAME", "WatchDogProducts")
+    region = os.environ.get("AWS_REGION", "us-east-1")
     
-    print(f"Connexion à DynamoDB via : {endpoint_url}")
+    print(f"Connexion à DynamoDB ({table_name}) via : {endpoint_url or 'AWS Managed'}")
     
-    dynamodb = boto3.resource('dynamodb', endpoint_url=endpoint_url, region_name="us-east-1")
-    table = dynamodb.Table('WatchDogProducts')
+    dynamodb = boto3.resource('dynamodb', endpoint_url=endpoint_url, region_name=region)
+    table = dynamodb.Table(table_name)
 
+    # Récupération des paramètres de l'événement
     url = event.get('url', 'https://www.amazon.fr/dp/B0CHX5T4S8')
     product_id = event.get('product_id', 'iphone-15')
 
-    headers = {"User-Agent": "Mozilla/5.0"}
+    # User-Agent
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7"
+    }
     
     try:
-        #  Scraping
+        # Scraping
         res = requests.get(url, headers=headers, timeout=15)
+        res.raise_for_status() 
+        
         soup = BeautifulSoup(res.text, 'html.parser')
         
-        # On cherche le prix 
-        price_tag = soup.find("span", {"class": "a-price-whole"}) or soup.find("span", {"id": "priceblock_ourprice"})
-        price = price_tag.text.replace(',', '').strip() if price_tag else "999" 
+        # Extraction du prix 
+        price = None
+     
+        selectors = [
+            ("span", {"class": "a-price-whole"}),
+            ("span", {"id": "priceblock_ourprice"}),
+            ("span", {"id": "priceblock_dealprice"}),
+            ("span", {"class": "a-offscreen"})
+        ]
+        
+        for tag, attrs in selectors:
+            price_tag = soup.find(tag, attrs)
+            if price_tag:
+                # Nettoyage : on garde les chiffres, on remplace la virgule par un point
+                price_raw = price_tag.text.replace(',', '.').replace('\xa0', '').strip()
+                # Extraction basique pour ne garder que le prix numérique
+                price = "".join(filter(lambda x: x.isdigit() or x == '.', price_raw))
+                if price: break
 
-        # Sauvegarde
+        if not price:
+            print(f"Attention : Prix non trouvé pour {product_id}")
+
+        # 3. Sauvegarde dans DynamoDB
         table.put_item(Item={
             'product_id': product_id,
             'url': url,
-            'current_price': str(price)
+            'current_price': str(price),
+            'timestamp': str(boto3.utils.get_service_schema_v2_file) 
         })
         
-        return {"status": "success", "product": product_id, "price": price}
+        return {
+            "statusCode": 200,
+            "body": json.dumps({
+                "status": "success",
+                "product": product_id,
+                "price": price,
+                "endpoint_used": endpoint_url
+            })
+        }
 
     except Exception as e:
-        print(f"ERREUR : {str(e)}")
-        return {"status": "error", "message": str(e)}
+        print(f"ERREUR CRITIQUE : {str(e)}")
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"status": "error", "message": str(e)})
+        }

@@ -1,17 +1,5 @@
-.terraform/
-*.tfstate*
+# Ignorer les archives de déploiement
 *.zip
-__pycache__/
-output.json
-node_modules/
-*.dist-info/
-.terraform.lock.hcl
-bin/
-bs4/
-certifi/
-charset_normalizer/
-idna/
-requests/
-soupsieve/
-urllib3/
-localstack_data/
+terraform/.terraform/
+terraform/*.tfstate*
+lambda_layers/python/

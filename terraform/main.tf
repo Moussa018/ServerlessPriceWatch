@@ -14,21 +14,19 @@ resource "aws_dynamodb_table" "price_tracker_table" {
   }
 }
 
-resource "null_resource" "install dependencies" {
- provisioner "local-exec" {
-    command = "pip install -r ${path.module}/../src/requirements.txt -t ${path.module}/../src/"
-}
-triggers = {
-    dependencies_hash = filemd5("${path.module}/../src/requirements.txt")
-  }
+data "archive_file" "layer_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../lambda_layers"
+  output_path = "${path.module}/python_libs.zip"
 }
 
-data "archive_file" "lambda_zip" {
-  depends_on = [null_resource.install_dependencies]
-  type        = "zip"
-  source_dir  = "${path.module}/../src" # Chemin vers le dossier de code
-  output_path = "${path.module}/lambda_function.zip"
+resource "aws_lambda_layer_version" "python_libs" {
+   filename = data.archive_file.layer_zip.output_path
+  layer_name          = "python_dependencies"
+  compatible_runtimes = ["python3.9"]
+  source_code_hash    = data.archive_file.layer_zip.output_base64sha256
 }
+
 # role IAM pour la Lambda
 resource "aws_iam_role" "lambda_role" {
   name = "price_tracker_lambda_role"
@@ -73,7 +71,9 @@ resource "aws_lambda_function" "price_scraper" {
   handler          = "scraper.handler" 
   runtime          = "python3.9"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
-timeout          = 30
+  timeout = 30
+  #layers
+  layers = [aws_lambda_layer_version.python_libs.arn]
   # Variables d'environnement 
   environment {
     variables = {
