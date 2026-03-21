@@ -1,76 +1,51 @@
-# ServerlessPriceWatch
+# ServerlessPriceWatch 
 
-**ServerlessPriceWatch** est un outil de suivi des prix automatisé conçu avec une architecture Cloud-native. Il utilise le web scraping pour surveiller les prix des produits et stocke les données. 
-Le projet est entièrement testable localement grâce à **LocalStack**.
+**ServerlessPriceWatch** est un outil de suivi de prix automatisé. Il utilise une fonction **AWS Lambda** (Python) pour scraper des pages produits, extraire les prix et stocker l'historique dans une table **DynamoDB**.
+
+Le projet est conçu pour être testé localement sans frais grâce à **LocalStack** et déployé via **Terraform**.
 
 ## Architecture
+* **Logiciel de Scraping** : Python 3.9 (BeautifulSoup4 & Requests).
+* **Base de données** : AWS DynamoDB (Table : `WatchDogProducts`).
+* **Infrastructure** : Terraform pour la création des ressources.
+* **Environnement Local** : LocalStack via Docker Compose.
 
-Le projet repose sur les services AWS suivants :
-* **AWS Lambda** : Logique de scraping en Python 3.9.
-* **AWS DynamoDB** : Base de données NoSQL pour l'historique des prix.
-* **Lambda Layers** : Gestion optimisée des dépendances (`requests`, `BeautifulSoup4`).
-* **Terraform** : Infrastructure as Code (IaC) pour déployer les ressources.
-* **LocalStack** : Émulateur AWS local pour le développement sans frais.
+---
 
+## Comment l'activer
 
+La méthode la plus simple consiste à utiliser le fichier `Makefile` fourni qui automatise toutes les étapes.
 
-## Optimisation : Lambda Layers
+### 1. Prérequis
+* Docker et Docker Compose.
+* L'outil `make` installé sur votre système.
 
-Pour ce projet, nous utilisons les **Lambda Layers** pour séparer le code métier des bibliothèques volumineuses.
-
-**Avantages :**
-* **Déploiements rapides** : Seul le script `scraper.py` (quelques Ko) est mis à jour lors des modifications de code.
-* **Propreté du code** : Le dossier `src/` reste léger et ne contient pas les dossiers de dépendances (comme `requests/` ou `bs4/`).
-* **Standard professionnel** : Reproduit la gestion des dépendances utilisée en production.
-
-
-
-##  Installation et Configuration
-
-### 1. Préparer les dépendances de la Layer
-Pour que la Layer fonctionne, les bibliothèques doivent être installées dans un dossier spécifique nommé `python/` :
+### 2. Lancement complet
+Ouvrez un terminal à la racine du projet et exécutez la commande suivante :
 ```bash
-mkdir -p lambda_layers/python
-pip install -r src/requirements.txt -t lambda_layers/python/
+make all
 ```
+Cette commande unique va :
+1.  Installer les dépendances Python nécessaires dans le dossier de la Lambda.
+2.  Démarrer le conteneur **LocalStack** en arrière-plan.
+3.  Initialiser et appliquer la configuration **Terraform** pour créer la base de données et la fonction Lambda.
 
-### 2. Lancer l'environnement local
-Démarrez LocalStack via Docker Compose :
+### 3. Tester le scraper
+Une fois le déploiement terminé, vous pouvez simuler le suivi d'un produit (par exemple, un iPhone 15) avec cette commande :
 ```bash
-docker-compose up -d
+make invoke
 ```
+Le résultat du scraping sera enregistré dans un fichier `output.json` et affiché dans votre terminal.
 
-### 3. Déployer l'infrastructure
-Utilisez Terraform pour créer la table DynamoDB, la Layer et la fonction Lambda :
-```bash
-cd terraform
-terraform init
-terraform apply --auto-approve
-```
+---
 
-## Utilisation
+## Commandes utiles
 
-Une fois déployé, vous pouvez invoquer la fonction manuellement en passant une URL Amazon et un ID de produit :
+* **Voir les logs** : `make logs` pour surveiller l'activité de LocalStack.
+* **Arrêter le projet** : `make clean` pour supprimer les conteneurs et les fichiers temporaires de build.
+* **Supprimer l'infrastructure** : `make destroy` pour supprimer uniquement les ressources AWS créées.
 
-```bash
-awslocal lambda invoke \
-  --function-name PriceScraper \
-  --payload '{"url": "https://www.amazon.fr/dp/B0CHX5T4S8", "product_id": "iphone-15"}' \
-  output.json
-```
-
-## Structure du Projet
-
-```text
-.
-├── src/
-│   ├── scraper.py       # Code source de la Lambda
-│   └── requirements.txt # Dépendances Python
-├── terraform/
-│   ├── main.tf          # Définition des ressources AWS
-│   └── provider.tf      # Configuration LocalStack
-├── lambda_layers/
-│   └── python/          # Dépendances installées pour la Layer
-├── docker-compose.yaml  # Configuration LocalStack
-└── README.md
-```
+## Structure du projet
+* `src/` : Contient le script de scraping (`scraper.py`).
+* `terraform/` : Fichiers de configuration de l'infrastructure AWS.
+* `docker-compose.yaml` : Définition des services pour l'environnement local (LocalStack, Terraform, CLI).
