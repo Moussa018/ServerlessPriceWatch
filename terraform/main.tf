@@ -13,12 +13,22 @@ resource "aws_dynamodb_table" "price_tracker_table" {
     Project = "PriceTracker"
   }
 }
+
+resource "null_resource" "install dependencies" {
+ provisioner "local-exec" {
+    command = "pip install -r ${path.module}/../src/requirements.txt -t ${path.module}/../src/"
+}
+triggers = {
+    dependencies_hash = filemd5("${path.module}/../src/requirements.txt")
+  }
+}
+
 data "archive_file" "lambda_zip" {
+  depends_on = [null_resource.install_dependencies]
   type        = "zip"
   source_dir  = "${path.module}/../src" # Chemin vers le dossier de code
   output_path = "${path.module}/lambda_function.zip"
 }
-
 # role IAM pour la Lambda
 resource "aws_iam_role" "lambda_role" {
   name = "price_tracker_lambda_role"
