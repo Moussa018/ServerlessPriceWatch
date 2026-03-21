@@ -31,7 +31,8 @@ services:
     container_name: pip-installer
     volumes:
       - ./src:/src:ro                    # requirements.txt en lecture seule
-      - ./lambda_layers:/lambda_layers   # destination de l'installation
+      - ./lambda_layers:/lambda_layers
+      - ./lambda_package:/lambda_package   # destination de l'installation
     # --no-cache-dir  → pas de cache pip dans le conteneur (inutile ici)
     # --upgrade       → s'assurer d'avoir la dernière version compatible
     # -t              → target : installe directement dans python/ (requis par AWS)
@@ -57,7 +58,8 @@ services:
     volumes:
       - ./terraform:/workspace          # fichiers .tf
       - ./src:/src                      # scraper.py pour archive_file lambda_zip
-      - ./lambda_layers:/lambda_layers  # dépendances déjà installées par pip-installer
+      - ./lambda_layers:/lambda_layers
+      - ./lambda_package:/lambda_package  # dépendances déjà installées par pip-installer
     depends_on:
       localstack:
         condition: service_healthy

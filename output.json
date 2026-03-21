@@ -1,1 +1,1 @@
-{"errorMessage": "Unable to import module 'scraper': No module named 'requests'", "errorType": "Runtime.ImportModuleError", "requestId": "", "stackTrace": []}
+{"statusCode": 200, "body": "{\"status\": \"success\", \"product\": \"book-test\", \"price\": \"51.77\"}"}
