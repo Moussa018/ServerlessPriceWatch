@@ -2,6 +2,7 @@ import json
 import boto3
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime, timezone
 import os
 
 def handler(event, context):
@@ -53,12 +54,11 @@ def handler(event, context):
         if not price:
             print(f"Attention : Prix non trouvé pour {product_id}")
 
-        # 3. Sauvegarde dans DynamoDB
         table.put_item(Item={
             'product_id': product_id,
             'url': url,
             'current_price': str(price),
-            'timestamp': str(boto3.utils.get_service_schema_v2_file) 
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
         
         return {

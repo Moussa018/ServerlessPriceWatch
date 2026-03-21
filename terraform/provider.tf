@@ -1,3 +1,16 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
+    }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.0"
+    }
+  }
+}
+
 provider "aws" {
   region                      = "us-east-1"
   access_key                  = "test"
@@ -7,10 +20,10 @@ provider "aws" {
   skip_requesting_account_id  = true
 
   endpoints {
-    dynamodb   = "http://localhost:4566"
-    lambda     = "http://localhost:4566"
-    iam        = "http://localhost:4566"
-    apigateway = "http://localhost:4566"
+    dynamodb   = "http://localstack:4566"
+    lambda     = "http://localstack:4566"
+    iam        = "http://localstack:4566"
+    apigateway = "http://localstack:4566"
+    s3         = "http://localstack:4566"
   }
-
 }

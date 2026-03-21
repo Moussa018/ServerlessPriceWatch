@@ -1,13 +1,85 @@
 version: "3.8"
+
 services:
+
+  # ─── LocalStack : émulateur AWS local ────────────────────────────────────────
   localstack:
     image: localstack/localstack:latest
+    container_name: localstack
     ports:
       - "4566:4566"
     environment:
       - SERVICES=lambda,dynamodb,apigateway,iam,s3
       - DEBUG=1
-      - DOCKER_FLAGS=-d
+      - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
       - "./localstack_data:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # ─── Pip Installer : installe les dépendances Python dans lambda_layers/python/ ──
+  # AWS Lambda Layers exige la structure : <layer.zip>/python/<packages>
+  # Ce service crée exactement cela avant que Terraform ne zippe le dossier.
+  # Usage : docker-compose run --rm pip-installer
+  pip-installer:
+    image: python:3.9-slim
+    container_name: pip-installer
+    volumes:
+      - ./src:/src:ro                    # requirements.txt en lecture seule
+      - ./lambda_layers:/lambda_layers   # destination de l'installation
+    # --no-cache-dir  → pas de cache pip dans le conteneur (inutile ici)
+    # --upgrade       → s'assurer d'avoir la dernière version compatible
+    # -t              → target : installe directement dans python/ (requis par AWS)
+    command: >
+      pip install
+        -r /src/requirements.txt
+        -t /lambda_layers/python/
+        --no-cache-dir
+        --upgrade
+
+  # ─── Terraform : déploiement de l'infrastructure ─────────────────────────────
+  # Usage : docker-compose run --rm terraform init
+  #         docker-compose run --rm terraform apply -auto-approve
+  terraform:
+    image: hashicorp/terraform:latest
+    container_name: terraform
+    working_dir: /workspace
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - TF_CLI_ARGS=-no-color
+    volumes:
+      - ./terraform:/workspace          # fichiers .tf
+      - ./src:/src                      # scraper.py pour archive_file lambda_zip
+      - ./lambda_layers:/lambda_layers  # dépendances déjà installées par pip-installer
+    depends_on:
+      localstack:
+        condition: service_healthy
+    entrypoint: ["terraform"]
+    command: ["version"]
+
+  # ─── AWS CLI : invoquer / inspecter les ressources LocalStack ────────────────
+  # Usage : docker-compose run --rm awscli lambda invoke \
+  #           --function-name PriceScraper \
+  #           --payload '{"url":"...","product_id":"..."}' output.json
+  awscli:
+    image: amazon/aws-cli:latest
+    container_name: awscli
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ENDPOINT_URL=http://localstack:4566
+    volumes:
+      - ./:/project
+    working_dir: /project
+    depends_on:
+      localstack:
+        condition: service_healthy
+    entrypoint: ["aws"]
